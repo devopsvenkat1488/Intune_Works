@@ -17,7 +17,7 @@
     3. The configuration variables below must be filled out.
 
 .NOTES
-    Author: Gemini Code Assist
+    Author: Pragna Cherukuru
     Version: 1.0
     For production environments, consider storing secrets like ClientSecret and SmtpPassword
     in a secure location like Azure Key Vault instead of plain text.

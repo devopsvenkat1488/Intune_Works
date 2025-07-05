@@ -70,14 +70,24 @@ try {
     $profilesUrl = "$graphApiEndpoint/deviceManagement/deviceConfigurations"
 
     Write-Host "Fetching device configuration profiles..." -ForegroundColor Cyan
-    $profiles = (Invoke-RestMethod -Uri $profilesUrl -Headers $headers -Method Get).value
-    Write-Host "Found $($profiles.Count) profiles."
+    $allProfiles = [System.Collections.Generic.List[psobject]]::new()
+    $nextLink = $profilesUrl
 
-    $reportData = foreach ($profile in $profiles) {
-        $profileName = $profile.displayName
+    # Loop to handle paged results from Graph API
+    do {
+        $response = Invoke-RestMethod -Uri $nextLink -Headers $headers -Method Get -ErrorAction Stop
+        $allProfiles.AddRange($response.value)
+        $nextLink = $response.'@odata.nextLink'
+    } while ($null -ne $nextLink)
+
+    $profiles = $allProfiles
+    Write-Host "Found $($profiles.Count) total profiles."
+
+    $reportData = foreach ($configProfile in $profiles) {
+        $profileName = $configProfile.displayName
         Write-Host "  - Getting status for '$profileName'..."
         
-        $statusUrl = "$profilesUrl/$($profile.id)/deviceStatusOverview"
+        $statusUrl = "$profilesUrl/$($configProfile.id)/deviceStatusOverview"
         try {
             $statusResponse = Invoke-RestMethod -Uri $statusUrl -Headers $headers -Method Get -ErrorAction Stop
             
@@ -94,6 +104,9 @@ try {
         catch {
             Write-Warning "Could not get status for profile '$profileName'. Error: $($_.Exception.Message)"
         }
+
+        # Add a small delay to avoid potential API throttling on tenants with many profiles.
+        Start-Sleep -Milliseconds 50
     }
 
     # Step 3: Generate HTML Report
@@ -124,8 +137,3 @@ try {
 catch {
     Write-Error "An unrecoverable error occurred: $($_.Exception.Message)"
 }
-
-#Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-#.\IntunePolicyReporter.ps1
-
-#.\IntunePolicyReporter.ps1
